@@ -1,0 +1,172 @@
+---
+title: "R Markdown Reports"
+author: "Dr. Alfredo Hernandez Sanchez"
+date: "3/24/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+#This chunk is included by default, it will not appear in our report!
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(psData)
+library(stargazer)
+df <- mtcars
+df$model <- row.names(df)
+df[df$am == 1,]$am <- "Manual"
+df[df$am == 0,]$am <- "Automatic"
+df$am <- as.factor(df$am)
+df$cyl <- as.factor(df$cyl)
+```
+## Introduction R Markdown?
+
+### Basic Syntax
+
+You can do many things with Markdown, from reports to blog post and even books with `bookdown`. Here we will cover the 20% of elements that will be useful 80% of the time![^1]
+
+We can change the fonts (i.e., **bold** `*text*` or *italics* `**text**`), as well as make headers and bullet points to make our reports tidier. For example:
+
+* For bullets point we write: `* Our Text`
+  + For sub-items we write:  `+ Our Text`
+* For headers we write #s in front of our text depending on the hierarchy
+  + ## Header 2 is `## Header 2`
+  + ### Header 3 is `### Header 3`
+  + #### Header 4 is `#### Header 4`
+* For links (e.g., [CheatSheet](https://rstudio.com/wp-content/uploads/2015/02/rmarkdown-cheatsheet.pdf)) we write: `[text](url)`
+* For footnotes we write: `[^id]` where you want the reference and `[^id]: Footnote content` *preferably* at the end of our document
+
+### Chunks
+
+We put *chunks* inside our Markdown document to display various types of content such as code, outputs, results, and figures. This is similar to the `scripts` we have been using thus far. In RStudio, you can run chunks individually. Each chunk must have its own name. The basic syntax of chunks is as follows:
+` ```{r name, options} #content ``` `
+
+### Display Options
+
+Chunks have several options that will determine how you want them to appear in your reports. Code can run, but be hidden, it can be shown but not run, or you can show the output but hide the code. You can type these options into the script or click the settings button in each chunk in RStudio. Here are some common examples:
+
+Option      | Default             | Effect
+------------|---------------------|--------------
+`eval`  |  **TRUE**   | Whether to evaluate the code and include its results
+`echo`  |  **TRUE**   | Whether to display code along with its results
+`warning`  |  **TRUE**   | Whether to display warnings
+`error`  |  **FALSE**   | Whether to display errors
+`message`  |  **TRUE**   | Whether to display messages
+
+#### In-line Code
+
+We can also include in-line code to highlight objects (e.g., `df`) using the syntax: \` content \`. Additionally, we can put console outputs in our text using the syntax: \` r content \`. This will help us make our reporting more streamlined! 
+
+### Tables
+
+We can include HTML type tables in our reports using the syntax:
+```
+Col1     | Col2            
+------- -|-----------
+cell1.1  | cell1.2 
+cell2.1  | cell2.2 
+```
+For example, markdown syntax:
+```
+Variable      | Description             | Loading
+--------------|-------------------------|--------------
+`i1_singleb`  | Single Bidding Rate     | **Negative**
+`i2_bnr`      | Trimmed Bidder Number   | **Positive**
+`i3_max_msh`  | Market Concentration    | **Negative**
+`i4_entryr`   | New Winner Rate         | **Positive**
+
+```
+Will output:
+
+Variable      | Description             | Loading
+--------------|-------------------------|--------------
+`i1_singleb`  | Single Bidding Rate     | **Negative**
+`i2_bnr`      | Trimmed Bidder Number   | **Positive**
+`i3_max_msh`  | Market Concentration    | **Negative**
+`i4_entryr`   | New Winner Rate         | **Positive**
+
+## Example with `mtcars` (yes, *again*...)
+
+We begin with an initial setup chunk. In this example, we will use two libraries: `stargazer` and `tidyverse`. We also load the data in this chunk. This chunk is typically not included in the report (i.e., `{r setup, include=FALSE}`). An R Markdown file in RStudio will include this as the first chunk by default! We can also use this chunk to do some general cleaning and categorical casting. 
+
+```{r setup2, include=TRUE, eval=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(stargazer)
+df <- mtcars
+
+# You can make comments inside chunks, just as in R scripts
+df$model <- row.names(df)
+df[df$am == 1,]$am <- "Manual"
+df[df$am == 0,]$am <- "Automatic"
+df$am <- as.factor(df$am)
+df$cyl <- as.factor(df$cyl)
+
+```
+Let's explore the structure of our data set `df` but omit the code used to retrieve it.
+
+```{r cars str, echo=FALSE}
+str(df)
+```
+
+We can display code that we want to show case so our audience can reproduce our studies. Below, we mutate miles per gallon to kilometers per liter. 
+
+```{r mutate}
+df <- df %>%
+  mutate(kml = mpg / 2.352)
+```
+
+We can also include some nice summary and regression tables using `stargazer`. Here we include the the summary statistics of our `df`. We can output the text that would show up in our console:
+
+```{r stargazer text}
+stargazer(df, type = "text", title="Descriptive Statistics", digits=1)
+```
+
+Or we can output an HTML table by including the following options in our chunk: `results='asis', message = FALSE`. If you want to knit PDF files, you must put the `type="latex"` option in the `stargazer` command. The df must be a `data.frame` class object to work with the `stargazer` package.
+
+```{r stargazer, results='asis', message = FALSE, echo=FALSE}
+stargazer(df, type = "html", title="Descriptive Statistics", digits=0)
+```
+***
+
+We can include some results in line as well. For example, we know that our `df` has `r nrow(df)` observations and `r length(df)` variables. We can also report that the average weight of cars is `r round(mean(df$wt), digits=2)` tons. 
+
+Finally, we can include plots as figures with several chunk options such as `fig.cap`, `fig.align`, and `out.width`. 
+
+```{r figure 1, echo=FALSE, message=F, warning=FALSE, fig.cap='Figure 1: Scatter Plot', fig.align='center', out.width='50%'}
+library(ggthemes)
+df %>% 
+  ggplot(aes(wt, kml, color=as.factor(cyl))) +
+  geom_point(size=2) +
+  labs(title = "Fuel Economy to Weight",
+       subtitle = "MTCARS Data",
+       color="Number of Cylinders",
+       x="Weight (tons)",
+       y="Km. per Liter")+
+  theme_economist()+
+  scale_color_economist()
+```
+
+## Activity
+
+The `psData` package contains some "commonly used and regularly maintained political science data sets". Please install the package and load it along with `tidyverse` as usual. 
+
+In breakout groups, explore the different data sets included in `psData` and try to find some interesting patters using the visualization techniques we have been using thus far. 
+
+After you have explored one or more data sets and made some compelling visualizations, create an **R Markdown** report (in HTML or PDF) which includes the following elements:
+
+* A title and the names of the authors in the group
+* An brief introduction of the data set
+* A table with the variable names and their description in `R Markdown`
+* A summary statistics and/or regression table using `stargazer` which *includes the code used*
+* A visualization using `ggplot2` which: 
+  + omits the code used
+  + has a figure caption in Markdown
+  + has an output width of 80% and is centered
+  + has a theme, either custom or from `ggthemes`
+* The code you used for the chart in a separate *chunk* which omits the graph itself
+* A short interpretation of the graph
+
+When you are done, choose one person from your group to walk us through it. 
+
+
+[^1]: If you want to learn more about R Markdown you can consult [Xie, *et. al.*, 2020](https://bookdown.org/yihui/rmarkdown/).
