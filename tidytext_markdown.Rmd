@@ -1,0 +1,98 @@
+---
+title: "Tidy Text Example"
+author: "Alfredo"
+date: "4/7/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tidytext)
+library(ggwordcloud)
+library(gutenbergr)
+```
+
+### Arthur Connan Doyle
+
+Let's import and visualize three books by the author of Sherlock Holmes from the [Gutenberg Project](https://www.gutenberg.org/). We will use the following packages:
+
+* `library(tidytext)`
+* `library(ggwordcloud)`
+* `library(gutenbergr)`
+
+```{r step 1, echo=TRUE, message=FALSE, warning=FALSE}
+#Step 1: Get Unprocessed Text
+raw_doyle <- gutenberg_download(c(108, 1661, 139))
+
+raw_doyle <- raw_doyle %>% 
+  mutate(book=case_when(
+    gutenberg_id==108~"The Return of Sherlock Holmes",
+    gutenberg_id==1661~"The Adventures of Sherlock Holmes",
+    gutenberg_id==139~"The Lost World",
+  ))
+head(raw_doyle)
+```
+### Cleaning our text with `stringR`
+
+We have a total of `r length(unique(raw_doyle$book))` books. Now let's clean the text by removing capital letters, punctuation and digits.[^1] 
+
+```{r message=FALSE, warning=FALSE}
+#Step 2: Clean Text
+clean_doyle <- raw_doyle %>% 
+  mutate(
+    text=tolower(text),
+    text=str_remove_all(text,"[:punct:]"),
+    text=str_remove_all(text,"[:digit:]")
+         )
+head(clean_doyle)
+```
+Now that our text is clean, we can move to the tokenization process. Before we do this however, let's define a very useful function: 
+```{r}
+`%notin%` <- Negate(`%in%`)
+```
+
+### Tokenization with `tidytext`
+
+With this, we can move on to tokenize our words, remove stopwords, and remove some custom words that do not give us much information! 
+
+```{r message=FALSE, warning=FALSE}
+tidy_doyle <- clean_doyle %>%
+  #Tokenize by word
+  unnest_tokens(word, text) %>%
+  #Remove english stopwords
+  anti_join(stop_words) %>% 
+  #Remove custom words
+  filter(word %notin% c("holmes", "watson", "sherlock"))
+head(tidy_doyle)
+```
+The next step is creating some text summaries, for example, word counts:
+```{r message=FALSE, warning=FALSE}
+#Step 4: Summarize Tokens
+
+tidy_doyle %>% 
+  group_by(book) %>% 
+  count(word, sort = T) %>% 
+  summarise(words=sum(n))
+
+tidy_counts <- tidy_doyle %>% 
+  group_by(book) %>% 
+  count(word, sort = T) 
+```
+### A `ggplot2` worldcloud
+
+Finally, we are ready to make a visualization. Let's make a wordcloud where each book has its own color!
+
+```{r message=FALSE, warning=FALSE}
+tidy_counts %>% 
+  head(100) %>% 
+  ggplot(aes(label=word, size=n, color=book))+
+  geom_text_wordcloud()+
+  scale_size_area(max_size = 5) +
+  facet_wrap(~book)+
+  theme_minimal()
+```
+
+There are many things you can do with text data besides visualizations. If you want to learn more about *text analytics*, consider going over the book [Text Mining with R](https://www.tidytextmining.com/) by Julia Silge.
+
+[^1]: There are many text cleaning methods, but I recommend using the `stringR`  [package](https://stringr.tidyverse.org/).
